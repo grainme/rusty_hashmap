@@ -17,6 +17,12 @@ impl<K, V> Hashmap<K, V> {
     }
 }
 
+impl<K, V> Default for Hashmap<K, V> {
+     fn default() -> Self {
+         Self::new()
+     }
+} 
+
 impl<K, V> Hashmap<K, V>
 where K: Eq + Hash 
 {
@@ -69,6 +75,30 @@ where K: Eq + Hash
             .find(|(ref ekey, _)| ekey == key)
             .map(|(_, ref eval)| eval)
     }
+
+
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.bucket[self.bucket(key)]
+            .iter()
+            .any(|(ref ekey, _)| ekey == key)
+    }
+
+    pub fn remove(&mut self, key: K) -> Option<V> {
+        let bucket = self.bucket(&key);
+        let bucket = &mut self.bucket[bucket];
+        // ? works with both result and option (sugar)
+        let ind: usize = bucket.iter().position(|(ref ekey, _)| ekey == &key)?;
+        self.items -= 1;
+        Some(bucket.swap_remove(ind).1)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items == 0
+    }
+
+    pub fn len(&self) -> usize {
+        self.items
+    }
 }
 
 
@@ -80,8 +110,23 @@ mod tests {
     #[test]
     fn insert() {
         let mut map = Hashmap::new();
+        assert_eq!(map.len(), 0);
+        assert!(map.is_empty());
         map.insert("foo", 1);
+        assert_eq!(map.len(), 1);
+        assert!(!map.is_empty());
         assert_eq!(map.get(&"foo"), Some(&1));
     }
+
+    #[test]
+    fn remove() {
+        let mut map = Hashmap::new();
+        map.insert("foo", 1);
+        map.insert("bar", 2);
+        map.insert("foobar", 3);
+        assert_eq!(map.remove("foobar"), Some(3));
+        assert_eq!(map.remove("foobar"), None);
+    }
+
 }
 
