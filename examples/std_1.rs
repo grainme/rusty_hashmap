@@ -1,3 +1,4 @@
+//! this is like second test taken from Rust std docs - cargo r --example -std_1
 extern crate hashmap;
 use hashmap::Hashmap;
 
