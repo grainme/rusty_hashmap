@@ -42,7 +42,7 @@ impl<'a, K, V> VacantEntry<'a, K, V> {
 
 
 impl<'a, K, V> Entry<'a, K, V> {
-    pub fn insert_or(self, default: V) -> &'a mut V {
+    pub fn or_insert(self, default: V) -> &'a mut V {
         match self {
             Entry::Occupied(e) => &mut e.element.1,
             Entry::Vacant(e) => e.insert(default),
@@ -205,7 +205,7 @@ where
     }
 
 
-    pub fn entry<'a>(&'a mut self, key: K) -> Entry<'a, K, V> {
+    pub fn entry(&mut self, key: K) -> Entry<K, V> {
         if self.buckets.is_empty() || self.items > 3 * self.buckets.len() / 4 {
             self.resize();
         }
