@@ -1,7 +1,6 @@
 //! this module implements a linked hashmap
-
 use std::{
-    borrow::Borrow, hash::{DefaultHasher, Hash, Hasher}, mem
+    borrow::{Borrow}, hash::{DefaultHasher, Hash, Hasher}, mem
 };
 const INITIAL_NBUCKET: usize = 1;
 
@@ -16,6 +15,52 @@ pub struct Iter<'a, K, V> {
     current_item: usize,
 }
 
+pub enum Entry<'a, K, V> {
+    Occupied(OccupiedEntry<'a, K, V>),
+    Vacant(VacantEntry<'a, K, V>),
+}
+
+#[allow(dead_code)]
+pub struct OccupiedEntry<'a, K, V> {
+    element: &'a mut (K, V),
+}
+
+#[allow(dead_code)]
+pub struct VacantEntry<'a, K, V> {
+    bucket: &'a mut Vec<(K, V)>,
+    key: K,
+}
+
+impl<'a, K, V> VacantEntry<'a, K, V> {
+    pub fn insert(self, default: V) -> &'a mut V {
+        self.bucket.push((self.key, default));
+        // unwrap in this case is safe because we've just pushed the element
+        // we know, it's there!
+        &mut self.bucket.last_mut().unwrap().1
+    }
+}
+
+
+impl<'a, K, V> Entry<'a, K, V> {
+    pub fn insert_or(self, default: V) -> &'a mut V {
+        match self {
+            Entry::Occupied(e) => &mut e.element.1,
+            Entry::Vacant(e) => e.insert(default),
+        }
+    }
+
+    pub fn or_default(self) -> &'a mut V 
+    where 
+        V: Default,
+    {
+        match self {
+            Entry::Occupied(e) => &mut e.element.1,
+            Entry::Vacant(e) => e.insert(V::default()),
+        }
+    }
+}
+
+
 impl<'a, K, V> Iter<'a, K, V> {
     fn new(map: &'a Hashmap<K, V>) -> Self{
         Iter {
@@ -25,6 +70,7 @@ impl<'a, K, V> Iter<'a, K, V> {
         }
     }
 }
+
 
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = (&'a K, &'a V);
@@ -156,6 +202,24 @@ where
         let ind: usize = bucket.iter().position(|(ref ekey, _)| ekey.borrow() == key)?;
         self.items -= 1;
         Some(bucket.swap_remove(ind).1)
+    }
+
+
+    pub fn entry<'a>(&'a mut self, key: K) -> Entry<'a, K, V> {
+        if self.buckets.is_empty() || self.items > 3 * self.buckets.len() / 4 {
+            self.resize();
+        }
+        
+        let bucket = self.bucket(&key);
+        match self.buckets[bucket].iter().position(|&(ref ekey, _)| ekey == &key) {
+            Some(index) => Entry::Occupied(OccupiedEntry {
+                element: &mut self.buckets[bucket][index]
+            }),
+            None => Entry::Vacant(VacantEntry {
+                bucket: &mut self.buckets[bucket],
+                key
+            })
+        }
     }
 
     pub fn is_empty(&self) -> bool {
